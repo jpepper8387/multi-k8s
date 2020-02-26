@@ -1,9 +1,31 @@
 sudo: required
 services:
   - docker
+env:
+  global:
+    - SHA=$(git rev-parse HEAD)
+    - CLOUDSDK_CORE_DISABLE_PROMPTS=1
 before_install:
   - openssl aes-256-cbc -K $encrypted_0c35eebf403c_key -iv $encrypted_0c35eebf403c_iv -in service-account.json.enc -out service-account.json -d
   - curl https://sdk.cloud.google.com | bash > /dev/null;
   - source $HOME/google-cloud-sdk/path.bash.inc
   - gcloud components update kubectl
   - gcloud auth activate-service-account --key-file service-account.json
+  - gloud config set project multi-k8s-269313
+  - gloud config set compute/zone us-central1-a
+  - gloud container clusters get-credentials multi-cluster
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker build -t jpepper8387/react-test -f ./client/Dockerfile.dev ./client
+script:
+  - docker run -e CI=true jpepper8387/react-test npm run test
+
+deploy:
+  provider: script
+  script: bash ./deploy.sh
+  on:
+    branch: master
+
+
+## also need to set glcoud config under kubernetes engine cloud shell
+## literally run same commans as above for set project, set compute and get credentials
+## make sure the project name and zone are still correct
